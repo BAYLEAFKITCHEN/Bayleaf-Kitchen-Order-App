@@ -1,0 +1,565 @@
+name: Build Bayleaf Kitchen APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Bayleaf Kitchen 12-Table Android App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      # ---------------------------------------------------------
+      # CREATE COMPLETE ANDROID PROJECT
+      # ---------------------------------------------------------
+
+      - name: Create Android project
+        shell: bash
+        run: |
+          set -e
+
+          echo "Creating Bayleaf Kitchen Android project..."
+
+          mkdir -p app/src/main/java/com/bayleaf/kitchen
+          mkdir -p app/src/main/res/values
+
+          # -----------------------------------------------------
+          # settings.gradle
+          # -----------------------------------------------------
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "BayleafKitchen"
+          include(":app")
+          EOF
+
+          # -----------------------------------------------------
+          # root build.gradle
+          # -----------------------------------------------------
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.6.1' apply false
+          }
+          EOF
+
+          # -----------------------------------------------------
+          # gradle.properties
+          # -----------------------------------------------------
+
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+
+          # -----------------------------------------------------
+          # app/build.gradle
+          # -----------------------------------------------------
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.bayleaf.kitchen'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.bayleaf.kitchen'
+                  minSdk 24
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+
+              buildTypes {
+                  debug {
+                      debuggable true
+                  }
+
+                  release {
+                      minifyEnabled false
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.7.0'
+              implementation 'com.google.android.material:material:1.12.0'
+          }
+          EOF
+
+          # -----------------------------------------------------
+          # AndroidManifest.xml
+          # -----------------------------------------------------
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.INTERNET" />
+
+              <application
+                  android:allowBackup="true"
+                  android:label="Bayleaf Kitchen"
+                  android:supportsRtl="true"
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:screenOrientation="landscape"
+                      android:exported="true">
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+
+                  </activity>
+
+              </application>
+
+          </manifest>
+          EOF
+
+          # -----------------------------------------------------
+          # MenuData.java
+          # -----------------------------------------------------
+
+          cat > app/src/main/java/com/bayleaf/kitchen/MenuData.java <<'EOF'
+          package com.bayleaf.kitchen;
+
+          import java.util.ArrayList;
+          import java.util.Arrays;
+          import java.util.LinkedHashMap;
+          import java.util.List;
+          import java.util.Map;
+
+          public class MenuData {
+
+              public static class Item {
+                  public final String name;
+                  public final double price;
+
+                  public Item(String name, double price) {
+                      this.name = name;
+                      this.price = price;
+                  }
+              }
+
+              public static Map<String, List<Item>> getMenu() {
+
+                  Map<String, List<Item>> menu = new LinkedHashMap<>();
+
+                  menu.put("Papadom & Chutneys", Arrays.asList(
+                          new Item("Plain Papadom", 0.95),
+                          new Item("Spicy Papadom", 1.00),
+                          new Item("Spiced Lime Pickle", 0.95),
+                          new Item("Chutney / Pickles", 0.95),
+                          new Item("Chutney Tray", 3.00)
+                  ));
+
+                  menu.put("Appetisers", Arrays.asList(
+                          new Item("Onion Bhaji", 4.50),
+                          new Item("Chicken Tikka", 5.50),
+                          new Item("Lamb Tikka", 5.95),
+                          new Item("Sheek Kebab", 4.95),
+                          new Item("Samosa", 3.95),
+                          new Item("Chicken Tikka Pakora", 6.95),
+                          new Item("Prawn Puri", 6.95),
+                          new Item("Shami Kebab", 4.95),
+                          new Item("Chicken Chaat", 5.95),
+                          new Item("Aloo Chaat", 5.50),
+                          new Item("Fish Pakora", 5.95),
+                          new Item("Paneer Tikka", 5.50),
+                          new Item("Nargis Kebab", 6.95),
+                          new Item("Bhuna Prawn on Puri", 6.95),
+                          new Item("Mixed Kebab Platter", 8.50)
+                  ));
+
+                  menu.put("Tandoori", Arrays.asList(
+                          new Item("Tandoori Chicken", 11.95),
+                          new Item("Chicken Tikka", 11.95),
+                          new Item("Lamb Tikka", 12.95),
+                          new Item("Tandoori King Prawns", 15.95),
+                          new Item("Tandoori Mixed Grill", 16.95),
+                          new Item("Paneer Tikka", 11.95)
+                  ));
+
+                  menu.put("Seafood", Arrays.asList(
+                          new Item("Fish Curry", 12.95),
+                          new Item("King Prawn Curry", 14.95),
+                          new Item("Prawn Curry", 11.95),
+                          new Item("Goan Fish Curry", 13.95),
+                          new Item("King Prawn Masala", 15.95)
+                  ));
+
+                  menu.put("Tawa", Arrays.asList(
+                          new Item("Tawa Chicken", 13.95),
+                          new Item("Tawa Lamb", 14.95),
+                          new Item("Tawa King Prawn", 16.95),
+                          new Item("Tawa Mixed", 16.95)
+                  ));
+
+                  menu.put("Thali", Arrays.asList(
+                          new Item("Vegetable Thali", 18.95),
+                          new Item("Meat Thali", 20.95)
+                  ));
+
+                  menu.put("Biryani", Arrays.asList(
+                          new Item("Chicken Biryani", 12.95),
+                          new Item("Lamb Biryani", 13.95),
+                          new Item("Prawn Biryani", 13.95),
+                          new Item("King Prawn Biryani", 15.95),
+                          new Item("Vegetable Biryani", 11.95),
+                          new Item("Special Mixed Biryani", 15.95)
+                  ));
+
+                  menu.put("Popular Curries", Arrays.asList(
+                          new Item("Chicken Curry", 10.95),
+                          new Item("Chicken Madras", 10.95),
+                          new Item("Chicken Vindaloo", 10.95),
+                          new Item("Chicken Korma", 10.95),
+                          new Item("Chicken Tikka Masala", 11.95),
+                          new Item("Chicken Bhuna", 10.95),
+                          new Item("Chicken Rogan", 10.95),
+                          new Item("Chicken Dhansak", 10.95),
+                          new Item("Chicken Dupiaza", 10.95),
+                          new Item("Lamb Curry", 11.95),
+                          new Item("Lamb Madras", 11.95),
+                          new Item("Lamb Vindaloo", 11.95),
+                          new Item("Lamb Korma", 11.95),
+                          new Item("Lamb Bhuna", 11.95),
+                          new Item("Lamb Rogan", 11.95),
+                          new Item("Lamb Dhansak", 11.95),
+                          new Item("Lamb Dupiaza", 11.95)
+                  ));
+
+                  menu.put("Vegetable Curries", Arrays.asList(
+                          new Item("Mixed Vegetable Curry", 9.95),
+                          new Item("Vegetable Korma", 9.95),
+                          new Item("Saag Aloo", 9.95),
+                          new Item("Saag Paneer", 10.95),
+                          new Item("Chana Masala", 9.95),
+                          new Item("Tarka Daal", 8.95),
+                          new Item("Bombay Potatoes", 8.95),
+                          new Item("Mushroom Bhaji", 8.95)
+                  ));
+
+                  menu.put("Rice", Arrays.asList(
+                          new Item("Plain Rice", 3.50),
+                          new Item("Pilau Rice", 3.95),
+                          new Item("Mushroom Rice", 4.50),
+                          new Item("Garlic Rice", 4.50),
+                          new Item("Special Fried Rice", 5.50),
+                          new Item("Coconut Rice", 4.50)
+                  ));
+
+                  menu.put("Breads", Arrays.asList(
+                          new Item("Plain Naan", 3.50),
+                          new Item("Garlic Naan", 4.25),
+                          new Item("Cheese Naan", 4.50),
+                          new Item("Peshwari Naan", 4.50),
+                          new Item("Keema Naan", 4.95),
+                          new Item("Garlic & Coriander Naan", 4.50),
+                          new Item("Tandoori Roti", 2.95),
+                          new Item("Chapati", 2.50),
+                          new Item("Paratha", 3.95)
+                  ));
+
+                  menu.put("Sides", Arrays.asList(
+                          new Item("Mixed Salad", 3.50),
+                          new Item("Raita", 3.50),
+                          new Item("Cucumber Raita", 3.50),
+                          new Item("Chips", 3.50),
+                          new Item("Masala Chips", 4.50),
+                          new Item("Mango Chutney", 0.95)
+                  ));
+
+                  menu.put("Soft Drinks", Arrays.asList(
+                          new Item("Coca Cola", 2.50),
+                          new Item("Diet Coke", 2.50),
+                          new Item("Coke Zero", 2.50),
+                          new Item("Fanta", 2.50),
+                          new Item("Sprite", 2.50),
+                          new Item("J20", 2.75),
+                          new Item("Appletiser", 2.75),
+                          new Item("Still Water", 2.00),
+                          new Item("Sparkling Water", 2.00)
+                  ));
+
+                  menu.put("Mocktails & Mojitos", Arrays.asList(
+                          new Item("Virgin Mojito", 5.95),
+                          new Item("Strawberry Mojito", 6.50),
+                          new Item("Passion Fruit Mojito", 6.50),
+                          new Item("Mango Mojito", 6.50),
+                          new Item("Virgin Pina Colada", 5.95),
+                          new Item("Passion Fruit Martini Mocktail", 6.50)
+                  ));
+
+                  menu.put("Tea & Coffee", Arrays.asList(
+                          new Item("Tea", 2.50),
+                          new Item("English Breakfast Tea", 2.50),
+                          new Item("Green Tea", 2.50),
+                          new Item("Coffee", 2.75),
+                          new Item("Cappuccino", 3.00),
+                          new Item("Latte", 3.00)
+                  ));
+
+                  return menu;
+              }
+          }
+          EOF
+
+          # -----------------------------------------------------
+          # KitchenPrinter.java
+          # -----------------------------------------------------
+
+          cat > app/src/main/java/com/bayleaf/kitchen/KitchenPrinter.java <<'EOF'
+          package com.bayleaf.kitchen;
+
+          import java.io.OutputStream;
+          import java.net.Socket;
+          import java.nio.charset.StandardCharsets;
+
+          public class KitchenPrinter {
+
+              public static void print(
+                      final String printerIp,
+                      final String orderText,
+                      final Runnable success,
+                      final Runnable failure) {
+
+                  new Thread(() -> {
+
+                      try {
+
+                          Socket socket = new Socket(printerIp, 9100);
+                          OutputStream output = socket.getOutputStream();
+
+                          output.write(new byte[]{0x1B, 0x40});
+
+                          output.write(
+                                  orderText.getBytes(StandardCharsets.UTF_8)
+                          );
+
+                          output.write("\n\n\n".getBytes(StandardCharsets.UTF_8));
+
+                          output.write(new byte[]{0x1D, 0x56, 0x00});
+
+                          output.flush();
+                          output.close();
+                          socket.close();
+
+                          if (success != null) {
+                              success.run();
+                          }
+
+                      } catch (Exception e) {
+
+                          if (failure != null) {
+                              failure.run();
+                          }
+                      }
+
+                  }).start();
+              }
+          }
+          EOF
+
+          # -----------------------------------------------------
+          # MainActivity.java
+          # -----------------------------------------------------
+
+          cat > app/src/main/java/com/bayleaf/kitchen/MainActivity.java <<'EOF'
+          package com.bayleaf.kitchen;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.widget.*;
+
+          import java.text.SimpleDateFormat;
+          import java.util.*;
+
+          public class MainActivity extends Activity {
+
+              private final Map<String, List<MenuData.Item>> menu =
+                      MenuData.getMenu();
+
+              private final Map<String, Integer> cart =
+                      new LinkedHashMap<>();
+
+              private final Map<String, Double> cartPrices =
+                      new LinkedHashMap<>();
+
+              private LinearLayout root;
+              private LinearLayout menuArea;
+              private TextView cartText;
+              private EditText customerName;
+              private EditText notes;
+              private EditText printerIp;
+
+              private String selectedTable = "Table 1";
+              private String selectedCategory = "";
+
+              private int orderNumber = 1;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  getWindow().setStatusBarColor(Color.rgb(30, 80, 40));
+
+                  buildScreen();
+              }
+
+              private int dp(int value) {
+                  return (int) (value *
+                          getResources().getDisplayMetrics().density + 0.5f);
+              }
+
+              private TextView text(
+                      String value,
+                      int size,
+                      boolean bold) {
+
+                  TextView t = new TextView(this);
+
+                  t.setText(value);
+                  t.setTextSize(size);
+
+                  if (bold) {
+                      t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+                  }
+
+                  t.setTextColor(Color.DKGRAY);
+                  t.setPadding(dp(8), dp(8), dp(8), dp(8));
+
+                  return t;
+              }
+
+              private Button button(String value) {
+
+                  Button b = new Button(this);
+
+                  b.setText(value);
+                  b.setTextSize(13);
+                  b.setAllCaps(false);
+
+                  return b;
+              }
+
+              private void buildScreen() {
+
+                  root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setBackgroundColor(Color.WHITE);
+
+                  TextView title =
+                          text("BAYLEAF KITCHEN SOUTHPORT", 22, true);
+
+                  title.setTextColor(Color.WHITE);
+                  title.setGravity(Gravity.CENTER);
+
+                  title.setBackgroundColor(
+                          Color.rgb(40, 105, 55)
+                  );
+
+                  root.addView(
+                          title,
+                          new LinearLayout.LayoutParams(
+                                  -1,
+                                  dp(55)
+                          )
+                  );
+
+                  LinearLayout content =
+                          new LinearLayout(this);
+
+                  content.setOrientation(
+                          LinearLayout.HORIZONTAL
+                  );
+
+                  root.addView(
+                          content,
+                          new LinearLayout.LayoutParams(
+                                  -1,
+                                  0,
+                                  1
+                          )
+                  );
+
+                  // LEFT SIDE
+                  LinearLayout left =
+                          new LinearLayout(this);
+
+                  left.setOrientation(
+                          LinearLayout.VERTICAL
+                  );
+
+                  left.setPadding(
+                          dp(6),
+                          dp(6),
+                          dp(3),
+                          dp(6)
+                  );
+
+                  content.addView(
+                          left,
+                          new LinearLayout.LayoutParams(
+                                  0,
+                                  -1,
+                                  0.22f
+                          )
+                  );
+
+                  left.addView(
+                          text("TABLES", 18, true)
+              
